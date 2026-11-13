@@ -7,8 +7,30 @@ export const login = async (data: any): Promise<AuthResponse> => {
 };
 
 export const demoLogin = async (): Promise<AuthResponse> => {
-    const res = await axiosInstance.post<AuthResponse>('/auth/demo-login');
-    return res.data;
+    try {
+        const res = await axiosInstance.post<AuthResponse>('/auth/demo-login');
+        return res.data;
+    } catch {
+        // Statik hosting (GitHub Pages) veya yerel API bağlantısı olmayan durumlar için yerel demo oturumu
+        const demoUser: any = {
+            id: 'demo-admin-001',
+            firstName: 'Demo',
+            lastName: 'Yöneticisi',
+            email: 'demo@afetistanbul.online',
+            role: 'ADMIN',
+            demo: true,
+            locationPermissionStatus: 'DENIED'
+        };
+        const token = 'demo-token-' + Date.now();
+        localStorage.setItem('afet_user', JSON.stringify(demoUser));
+        localStorage.setItem('afet_token', token);
+        return {
+            token,
+            tokenType: 'Bearer',
+            expiresIn: 86400,
+            user: demoUser
+        };
+    }
 };
 
 export const register = async (data: any): Promise<MessageResponse> => {

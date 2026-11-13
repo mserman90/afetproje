@@ -16,6 +16,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             const storedToken = localStorage.getItem('afet_token');
+            const storedUser = localStorage.getItem('afet_user');
+
+            if (storedUser) {
+                try {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.demo) {
+                        setAuth(storedToken || 'demo-token', parsedUser);
+                        setIsInitializing(false);
+                        return;
+                    }
+                } catch {}
+            }
+
             if (!storedToken) {
                 clearAuth();
                 setIsInitializing(false);

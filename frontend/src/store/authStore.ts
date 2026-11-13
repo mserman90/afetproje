@@ -13,10 +13,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     accessToken: null,
     user: null,
 
-    setAuth: (accessToken: string, user: UserSummaryResponse) =>
-        set({ accessToken, user }),
+    setAuth: (accessToken: string, user: UserSummaryResponse) => {
+        localStorage.setItem('afet_token', accessToken);
+        localStorage.setItem('afet_user', JSON.stringify(user));
+        set({ accessToken, user });
+    },
 
-    setAccessToken: (accessToken: string) => set({ accessToken }),
+    setAccessToken: (accessToken: string) => {
+        localStorage.setItem('afet_token', accessToken);
+        set({ accessToken });
+    },
 
-    clearAuth: () => set({ accessToken: null, user: null }),
+    clearAuth: () => {
+        localStorage.removeItem('afet_token');
+        localStorage.removeItem('afet_user');
+        set({ accessToken: null, user: null });
+    },
 }));

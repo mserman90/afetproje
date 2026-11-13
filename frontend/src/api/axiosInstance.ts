@@ -46,10 +46,17 @@ function isExemptFromRefresh(url?: string): boolean {
 }
 
 function redirectToLogin() {
+    const user = useAuthStore.getState().user;
+    if (user?.demo) {
+        return; // Demo modunda API hatası oturumu düşürmesin
+    }
     useAuthStore.getState().clearAuth();
     localStorage.removeItem('afet_token');
-    if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+    localStorage.removeItem('afet_user');
+    const base = import.meta.env.BASE_URL || '/';
+    const loginPath = base.endsWith('/') ? `${base}login` : `${base}/login`;
+    if (window.location.pathname !== loginPath && !window.location.pathname.endsWith('/login')) {
+        window.location.href = loginPath;
     }
 }
 
@@ -61,6 +68,10 @@ instance.interceptors.response.use(
         const exempt = isExemptFromRefresh(originalRequest?.url);
 
         if (status === 401 && originalRequest && !exempt) {
+            const user = useAuthStore.getState().user;
+            if (user?.demo) {
+                return Promise.reject(parseApiError(error));
+            }
             if (!originalRequest._retry) {
                 originalRequest._retry = true;
                 try {

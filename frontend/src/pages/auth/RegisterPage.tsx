@@ -3,12 +3,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { register as registerUser } from '@/api/auth.api';
+import { register as registerUser, demoLogin } from '@/api/auth.api';
 import { getDistricts } from '@/api/districts.api';
 import { getNeighborhoods } from '@/api/neighborhoods.api';
 import { useToast } from '@/components/shared/ToastProvider';
+import { useAuthStore } from '@/store/authStore';
 import { Button, FormField } from '@/components/ui';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Eye as EyeIcon } from 'lucide-react';
 import { DistrictResponse, NeighborhoodSummaryResponse } from '@/types';
 import { ApiError } from '@/utils/errorParser';
 import { isValidTurkishMobile, PHONE_HINT, PHONE_PLACEHOLDER } from '@/utils/phone';
@@ -35,9 +36,26 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export const RegisterPage: React.FC = () => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { setAuth } = useAuthStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDemoLoading, setIsDemoLoading] = useState(false);
     const [districts, setDistricts] = useState<DistrictResponse[]>([]);
     const [neighborhoods, setNeighborhoods] = useState<NeighborhoodSummaryResponse[]>([]);
+
+    const handleDemoLogin = async () => {
+        if (isDemoLoading) return;
+        setIsDemoLoading(true);
+        try {
+            const res = await demoLogin();
+            setAuth(res.token, res.user);
+            toast.info('Demo modundasınız. Bu oturumda yapılan değişiklikler kaydedilmez ve düzenleme işlemleri devre dışıdır.');
+            navigate('/dashboard');
+        } catch {
+            toast.error('Demo modu şu anda başlatılamadı.');
+        } finally {
+            setIsDemoLoading(false);
+        }
+    };
 
     const {
         register,
@@ -209,6 +227,23 @@ export const RegisterPage: React.FC = () => {
                     <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">
                         Giriş Yap
                     </Link>
+                </div>
+
+                <div className="mt-6 border-t border-gray-200 pt-6">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full border-dashed"
+                        leftIcon={<EyeIcon className="h-4 w-4" />}
+                        loading={isDemoLoading}
+                        onClick={handleDemoLogin}
+                        aria-label="Giriş yapmadan salt okunur admin demo modunu başlat"
+                    >
+                        Giriş Yapmadan Admin Olarak Siteyi Gez
+                    </Button>
+                    <p className="mt-2 text-center text-xs text-gray-400">
+                        Salt okunur demo modu — hiçbir veri değiştirilemez.
+                    </p>
                 </div>
             </div>
         </div>

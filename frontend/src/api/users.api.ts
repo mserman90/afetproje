@@ -15,8 +15,21 @@ export const updateLocationPermission = async (data: UpdateLocationPermissionReq
 };
 
 export const getMe = async (): Promise<UserResponse> => {
-    const res = await axiosInstance.get<UserResponse>('/auth/me');
-    return res.data;
+    try {
+        const res = await axiosInstance.get<UserResponse>('/auth/me');
+        return res.data;
+    } catch (err) {
+        const storedUser = localStorage.getItem('afet_user');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                if (parsed.demo) {
+                    return parsed as UserResponse;
+                }
+            } catch {}
+        }
+        throw err;
+    }
 };
 
 export const updateMe = async (data: any): Promise<UserResponse> => {
