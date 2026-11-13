@@ -17,7 +17,8 @@ export const getMapDistricts = async (): Promise<MapDistrictResponse[]> => {
             openEventCount: 2,
             openResourceRequestCount: 1,
             damageCount: 5,
-        }));
+            polygon: null,
+        })) as unknown as MapDistrictResponse[];
     }
 };
 
