@@ -68,3 +68,21 @@ export interface TargetZone {
     infra?: InfraData;
     alerts?: WeatherAlert[];
 }
+
+export interface IntelligenceEntity {
+    type: 'cve' | 'apt' | 'location' | 'category' | 'anomaly';
+    label: string;
+}
+
+export interface IntelligenceEvent {
+    id: string;
+    type: 'osint' | 'earthquake' | 'flight' | 'disaster' | 'space_weather' | 'satellite_monitoring' | 'regional_threat';
+    timestamp: number;
+    title: string;
+    summary: string;
+    link: string;
+    entities: IntelligenceEntity[];
+    isAnomaly: boolean;
+    anomalyReason?: string;
+    mag?: number;
+}

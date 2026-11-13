@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Navigation, PackageOpen, Hospital, Flame, Shield, School, AlertCircle } from 'lucide-react';
+import { X, Navigation, PackageOpen, Building2, Flame, Shield, School, AlertCircle, HeartPulse } from 'lucide-react';
 import type {
     DistrictCoordinatorMapResponse,
     NeighborhoodCoordinatorMapResponse,
@@ -63,7 +63,7 @@ const CenterDetails: React.FC<{
 
 const CriticalFacilityDetails: React.FC<{ facility: CriticalFacility }> = ({ facility }) => {
     const typeLabelMap: Record<CriticalFacility['type'], { title: string; color: string; icon: React.ReactNode }> = {
-        hospital: { title: 'Hastane / Sağlık Tesisi', color: 'text-rose-700 bg-rose-50 border-rose-200', icon: <Hospital className="w-4 h-4 text-rose-600" /> },
+        hospital: { title: 'Hastane / Sağlık Tesisi', color: 'text-rose-700 bg-rose-50 border-rose-200', icon: <HeartPulse className="w-4 h-4 text-rose-600" /> },
         fire_station: { title: 'İtfaiye İstasyonu', color: 'text-orange-700 bg-orange-50 border-orange-200', icon: <Flame className="w-4 h-4 text-orange-600" /> },
         police: { title: 'Emniyet / Polis Merkezi', color: 'text-blue-700 bg-blue-50 border-blue-200', icon: <Shield className="w-4 h-4 text-blue-600" /> },
         school: { title: 'Eğitim & Tahliye Alanı', color: 'text-indigo-700 bg-indigo-50 border-indigo-200', icon: <School className="w-4 h-4 text-indigo-600" /> },
@@ -125,8 +125,8 @@ function renderEntityContent(entity: SelectedMapEntity) {
                         <span className="font-medium text-gray-700">Hasar Seviyesi: </span>
                         <span className="font-bold text-orange-600">{entity.data.damageLevel}</span>
                     </div>
-                    {entity.data.description && (
-                        <p className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">{entity.data.description}</p>
+                    {entity.data.note && (
+                        <p className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">{entity.data.note}</p>
                     )}
                     <a
                         href={googleMapsUrl(entity.data.latitude, entity.data.longitude)}

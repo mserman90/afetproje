@@ -13,7 +13,7 @@ import {
     ShieldAlert,
     Network
 } from 'lucide-react';
-import { IntelligenceEvent } from '@/types/hazard';
+import { IntelligenceEvent, IntelligenceEntity } from '@/types/hazard';
 import { Button, Badge } from '@/components/ui';
 
 interface IntelligenceGraphProps {
@@ -98,7 +98,7 @@ export const IntelligenceGraph: React.FC<IntelligenceGraphProps> = ({ events, on
             });
 
             // Varlık (Entity) düğümleri ve bağlantılar
-            ev.entities?.forEach(ent => {
+            ev.entities?.forEach((ent: IntelligenceEntity) => {
                 const entId = `ent_${ent.type}_${ent.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
                 if (!entityMap.has(entId)) {
                     entityMap.set(entId, { label: ent.label, type: ent.type });

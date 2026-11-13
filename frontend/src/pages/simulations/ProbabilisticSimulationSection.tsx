@@ -17,7 +17,7 @@ import {
     ShieldCheck, 
     Zap,
     MapPin,
-    Hospital,
+    HeartPulse,
     School
 } from 'lucide-react';
 import { DisasterType, SimulationParams, SimulationResults, TargetZone } from '@/types/hazard';
@@ -179,7 +179,7 @@ export const ProbabilisticSimulationSection: React.FC = () => {
                         </div>
                     </div>
                     <div className="bg-slate-800/60 rounded-lg p-2.5 flex items-center space-x-2">
-                        <Hospital className="w-4 h-4 text-rose-400 shrink-0" />
+                        <HeartPulse className="w-4 h-4 text-rose-400 shrink-0" />
                         <div>
                             <span className="text-slate-400 block">Kritik Tesisler (OSM):</span>
                             <span className="font-semibold text-white">
@@ -387,7 +387,7 @@ export const ProbabilisticSimulationSection: React.FC = () => {
                                             {targetZone.infra.facilities.slice(0, 4).map((f, idx) => (
                                                 <div key={idx} className="flex items-center space-x-2 text-xs bg-gray-50 p-2 rounded border border-gray-200/80">
                                                     {f.type === 'hospital' ? (
-                                                        <Hospital className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                        <HeartPulse className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                                                     ) : f.type === 'school' ? (
                                                         <School className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                                                     ) : (
