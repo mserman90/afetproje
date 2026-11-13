@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import type { MapDistrictResponse, MapNeighborhoodResponse } from '@/types';
 import { DAMAGE_STATUS_COLORS } from '@/utils/damageColors';
+import type { CriticalFacility } from '@/types/hazard';
 
 // ─── Color tables ────────────────────────────────────────────────────────────
 export const RiskColors: Record<string, string> = {
@@ -91,6 +92,42 @@ export function createResourceIcon(count: number): L.DivIcon {
         iconSize:    [36, 36],
         iconAnchor:  [18, 36],
         popupAnchor: [0, -38],
+    });
+}
+
+/**
+ * Kritik Altyapı Tesis İkonları (Hastane, İtfaiye, Polis, Okul vb.)
+ */
+export function createCriticalFacilityIcon(type: CriticalFacility['type']): L.DivIcon {
+    let bgColor = '#e11d48'; // rose
+    let emoji = '🏥';
+
+    if (type === 'fire_station') {
+        bgColor = '#ea580c'; // orange
+        emoji = '🚒';
+    } else if (type === 'police') {
+        bgColor = '#2563eb'; // blue
+        emoji = '👮';
+    } else if (type === 'school') {
+        bgColor = '#4f46e5'; // indigo
+        emoji = '🏫';
+    } else if (type === 'emergency') {
+        bgColor = '#b91c1c'; // dark red
+        emoji = '🚨';
+    }
+
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="14" fill="${bgColor}" stroke="white" stroke-width="2"/>
+            <text x="16" y="21" text-anchor="middle" font-size="14" font-family="sans-serif" fill="white">${emoji}</text>
+        </svg>`;
+
+    return L.divIcon({
+        className: '',
+        html: `<div style="filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4))">${svg}</div>`,
+        iconSize:    [32, 32],
+        iconAnchor:  [16, 32],
+        popupAnchor: [0, -34],
     });
 }
 

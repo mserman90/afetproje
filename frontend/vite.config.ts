@@ -7,8 +7,10 @@ import path from 'path';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
     const apiTarget = env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const baseUrl = process.env.BASE_URL || env.VITE_BASE_URL || '/';
 
     return {
+        base: baseUrl,
         plugins: [
             react(),
             VitePWA({

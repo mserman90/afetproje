@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Navigation, PackageOpen } from 'lucide-react';
+import { X, Navigation, PackageOpen, Hospital, Flame, Shield, School, AlertCircle } from 'lucide-react';
 import type {
     DistrictCoordinatorMapResponse,
     NeighborhoodCoordinatorMapResponse,
@@ -7,6 +7,7 @@ import type {
     MapNeighborhoodResponse,
 } from '@/types';
 import type { DamagePointResponse } from '@/types/damage';
+import type { CriticalFacility } from '@/types/hazard';
 import { googleMapsUrl } from './mapIcons';
 
 export type SelectedMapEntity =
@@ -14,7 +15,8 @@ export type SelectedMapEntity =
     | { kind: 'RESOURCE_DISTRICT'; data: MapDistrictResponse }
     | { kind: 'RESOURCE_NEIGHBORHOOD'; data: MapNeighborhoodResponse; districtName?: string }
     | { kind: 'DISTRICT_CENTER'; data: DistrictCoordinatorMapResponse }
-    | { kind: 'NEIGHBORHOOD_CENTER'; data: NeighborhoodCoordinatorMapResponse };
+    | { kind: 'NEIGHBORHOOD_CENTER'; data: NeighborhoodCoordinatorMapResponse }
+    | { kind: 'CRITICAL_FACILITY'; data: CriticalFacility };
 
 interface MapEntityDetailsProps {
     entity: SelectedMapEntity | null;
@@ -59,72 +61,111 @@ const CenterDetails: React.FC<{
     </div>
 );
 
-function renderEntityContent(entity: SelectedMapEntity): React.ReactNode {
+const CriticalFacilityDetails: React.FC<{ facility: CriticalFacility }> = ({ facility }) => {
+    const typeLabelMap: Record<CriticalFacility['type'], { title: string; color: string; icon: React.ReactNode }> = {
+        hospital: { title: 'Hastane / Sağlık Tesisi', color: 'text-rose-700 bg-rose-50 border-rose-200', icon: <Hospital className="w-4 h-4 text-rose-600" /> },
+        fire_station: { title: 'İtfaiye İstasyonu', color: 'text-orange-700 bg-orange-50 border-orange-200', icon: <Flame className="w-4 h-4 text-orange-600" /> },
+        police: { title: 'Emniyet / Polis Merkezi', color: 'text-blue-700 bg-blue-50 border-blue-200', icon: <Shield className="w-4 h-4 text-blue-600" /> },
+        school: { title: 'Eğitim & Tahliye Alanı', color: 'text-indigo-700 bg-indigo-50 border-indigo-200', icon: <School className="w-4 h-4 text-indigo-600" /> },
+        emergency: { title: 'Acil Müdahale Noktası', color: 'text-red-700 bg-red-50 border-red-200', icon: <AlertCircle className="w-4 h-4 text-red-600" /> },
+    };
+
+    const info = typeLabelMap[facility.type] || typeLabelMap.emergency;
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-start gap-2">
+                <span className="p-1.5 rounded-md bg-gray-100">{info.icon}</span>
+                <div>
+                    <span className="text-[11px] font-semibold tracking-wide uppercase text-gray-500 block">
+                        Kritik Kamu Altyapısı
+                    </span>
+                    <h4 className="text-sm font-bold text-gray-900 leading-snug">
+                        {facility.name || info.title}
+                    </h4>
+                </div>
+            </div>
+
+            <div className={`text-xs px-2.5 py-1.5 rounded border font-medium ${info.color}`}>
+                Tür: {info.title}
+            </div>
+
+            <div className="text-xs text-gray-500 space-y-1 bg-gray-50 p-2.5 rounded border border-gray-100">
+                <div className="flex justify-between">
+                    <span>Koordinatlar:</span>
+                    <span className="font-mono text-gray-800">{facility.lat.toFixed(4)}, {facility.lng.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>Kaynak:</span>
+                    <span className="text-gray-700 font-medium">OpenStreetMap (OSM) Canlı</span>
+                </div>
+            </div>
+
+            <a
+                href={googleMapsUrl(facility.lat, facility.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-md px-2.5 py-1.5 w-fit hover:bg-blue-100 font-medium"
+            >
+                <Navigation className="h-3.5 w-3.5" aria-hidden="true" />
+                Google Harita'da Yol Tarifi
+            </a>
+        </div>
+    );
+};
+
+function renderEntityContent(entity: SelectedMapEntity) {
     switch (entity.kind) {
-        case 'DAMAGE': {
-            const point = entity.data;
-            const flags: string[] = [];
-            if (point.gasLeakRisk) flags.push('Gaz sızıntısı');
-            if (point.collapseRisk) flags.push('Çökme riski');
-            if (point.emergencyEvacuationNeeded) flags.push('Tahliye gerekli');
-            if (point.casualtiesSuspected) flags.push('Kayıp şüphesi');
+        case 'DAMAGE':
             return (
                 <div>
-                    <p className="text-sm font-bold text-gray-900 pb-2 border-b border-gray-100">Hasar Tespiti</p>
-                    {point.address && (
-                        <p className="text-xs text-gray-700 mt-2"><strong>Adres:</strong> {point.address}</p>
-                    )}
-                    {(point.districtName || point.neighborhoodName) && (
-                        <p className="text-xs text-gray-500 mt-1">
-                            {point.districtName}{point.neighborhoodName ? ' / ' + point.neighborhoodName : ''}
-                        </p>
-                    )}
-                    <p className="text-xs text-gray-700 mt-1"><strong>Hasar:</strong> {point.damageLevelLabel}</p>
-                    <p className="text-xs text-gray-700 mt-1"><strong>Durum:</strong> {point.verificationStatusLabel}</p>
-                    {flags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                            {flags.map((f) => (
-                                <span key={f} className="text-[11px] bg-red-50 text-red-700 rounded-full px-2 py-0.5">{f}</span>
-                            ))}
-                        </div>
+                    <p className="text-sm font-bold text-gray-900">{entity.data.address || 'Hasarlı Bina'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{entity.data.districtName} / {entity.data.neighborhoodName}</p>
+                    <div className="mt-2 text-xs">
+                        <span className="font-medium text-gray-700">Hasar Seviyesi: </span>
+                        <span className="font-bold text-orange-600">{entity.data.damageLevel}</span>
+                    </div>
+                    {entity.data.description && (
+                        <p className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">{entity.data.description}</p>
                     )}
                     <a
-                        href={googleMapsUrl(point.latitude, point.longitude)}
+                        href={googleMapsUrl(entity.data.latitude, entity.data.longitude)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs text-blue-700 mt-3"
+                        className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-md px-2.5 py-1.5 w-fit hover:bg-blue-100 mt-3"
                     >
                         <Navigation className="h-3.5 w-3.5" aria-hidden="true" />
-                        Google Harita'da Aç
+                        Google Harita'da Yol Tarifi
                     </a>
-                    {point.note && (
-                        <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
-                            <strong>Not:</strong> {point.note}
-                        </p>
-                    )}
                 </div>
             );
-        }
         case 'RESOURCE_DISTRICT':
             return (
                 <div>
-                    <p className="text-sm font-bold text-gray-900 pb-2 border-b border-gray-100 flex items-center gap-1.5">
-                        <PackageOpen className="h-4 w-4 text-blue-600" aria-hidden="true" /> Kaynak Talebi
+                    <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <PackageOpen className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Kaynak Talebi Özeti</span>
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">{entity.data.name} İlçesi</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Bu ilçede toplam <strong>{entity.data.openResourceRequestCount}</strong> adet açık kaynak talebi bulunmaktadır.
                     </p>
-                    <p className="text-xs text-gray-700 mt-2"><strong>İlçe:</strong> {entity.data.name}</p>
-                    <p className="text-xs text-gray-700 mt-1"><strong>Açık Talep:</strong> {entity.data.openResourceRequestCount}</p>
-                    <p className="text-xs text-gray-400 mt-2">Detay için ilçeyi seçin.</p>
                 </div>
             );
         case 'RESOURCE_NEIGHBORHOOD':
             return (
                 <div>
-                    <p className="text-sm font-bold text-gray-900 pb-2 border-b border-gray-100 flex items-center gap-1.5">
-                        <PackageOpen className="h-4 w-4 text-blue-600" aria-hidden="true" /> Kaynak Talebi
+                    <div className="flex items-center gap-1.5 text-blue-600 mb-1">
+                        <PackageOpen className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Kaynak Talebi Özeti</span>
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">{entity.data.name} Mahallesi</p>
+                    {entity.districtName && (
+                        <p className="text-xs text-gray-500">{entity.districtName} İlçesi</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                        Bu mahallede toplam <strong>{entity.data.openResourceRequestCount}</strong> adet açık kaynak talebi bulunmaktadır.
                     </p>
-                    <p className="text-xs text-gray-700 mt-2"><strong>Mahalle:</strong> {entity.data.name}</p>
-                    {entity.districtName && <p className="text-xs text-gray-700 mt-1"><strong>İlçe:</strong> {entity.districtName}</p>}
-                    <p className="text-xs text-gray-700 mt-1"><strong>Açık Talep:</strong> {entity.data.openResourceRequestCount}</p>
                 </div>
             );
         case 'DISTRICT_CENTER':
@@ -157,24 +198,20 @@ function renderEntityContent(entity: SelectedMapEntity): React.ReactNode {
                     accentColor="#7c3aed"
                 />
             );
+        case 'CRITICAL_FACILITY':
+            return <CriticalFacilityDetails facility={entity.data} />;
         default:
             return null;
     }
 }
 
-/**
- * Haritada seçilen TEK varlığın (hasar/kaynak/merkez) detayını gösteren panel. Native Leaflet
- * Popup'ların yerini alır — bu sayede aynı anda yalnızca bir detay açık olabilir (state tek bir
- * `entity` değeri) ve stil app'in geri kalanıyla tutarlıdır. Masaüstünde sol-alt köşede kompakt
- * bir kart, mobilde alttan açılan tam genişlik bir sheet.
- */
 export const MapEntityDetails: React.FC<MapEntityDetailsProps> = ({ entity, onClose }) => {
     if (!entity) return null;
 
     return (
         <div
             className="absolute z-[1000] left-1/2 -translate-x-1/2 bottom-3 w-[calc(100%-24px)] max-w-sm
-                       sm:left-3 sm:translate-x-0 sm:bottom-3 sm:w-[300px] sm:max-w-none"
+                       sm:left-3 sm:translate-x-0 sm:bottom-3 sm:w-[320px] sm:max-w-none"
         >
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-h-[50vh] overflow-y-auto">
                 <button

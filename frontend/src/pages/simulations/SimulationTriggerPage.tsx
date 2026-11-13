@@ -8,13 +8,15 @@ import { Button, DataTable, ColumnDef, FormField, Badge, Modal } from '@/compone
 import { SimulationDetailResponse } from '@/types';
 import { useToast } from '@/components/shared/ToastProvider';
 import { useDemoMode } from '@/hooks/useDemoMode';
-import { ShieldAlert, Play } from 'lucide-react';
+import { ShieldAlert, Play, Zap, ListFilter } from 'lucide-react';
 import { format } from 'date-fns';
+import { ProbabilisticSimulationSection } from './ProbabilisticSimulationSection';
 
 export const SimulationTriggerPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const toast = useToast();
+    const [activeTab, setActiveTab] = useState<'probabilistic' | 'stress_test'>('probabilistic');
     const [page, setPage] = useState(0);
     const [modalOpen, setModalOpen] = useState(false);
     const { isDemo, disabledReason } = useDemoMode();
@@ -72,47 +74,93 @@ export const SimulationTriggerPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {/* Sayfa Başlığı */}
             <div className="sm:flex sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:tracking-tight flex items-center">
-                        <ShieldAlert className="h-6 w-6 mr-2 text-red-600" />
-                        Deprem Simülasyonları
+                        <ShieldAlert className="h-6 w-6 mr-2 text-indigo-600" />
+                        Afet Simülasyon & Risk Yönetimi
                     </h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        Sistem hazırlığını ve gönüllü bildirim altyapısını test etmek için simülasyon başlatın.
+                        Olasılıksal hasar modelleriyle riskleri simüle edin ve acil bildirim altyapısını test edin.
                     </p>
                 </div>
-                <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                    <Button
-                        onClick={() => setModalOpen(true)}
-                        variant="danger"
-                        leftIcon={<Play className="h-4 w-4" />}
-                        disabled={isDemo}
-                        disabledReason={disabledReason}
-                    >
-                        Simülasyon Başlat
-                    </Button>
-                </div>
+
+                {activeTab === 'stress_test' && (
+                    <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                        <Button
+                            onClick={() => setModalOpen(true)}
+                            variant="danger"
+                            leftIcon={<Play className="h-4 w-4" />}
+                            disabled={isDemo}
+                            disabledReason={disabledReason}
+                        >
+                            Bildirim Testi Başlat
+                        </Button>
+                    </div>
+                )}
             </div>
 
-            <DataTable
-                columns={columns}
-                data={data?.content || []}
-                isLoading={isLoading}
-                emptyMessage="Henüz simülasyon başlatılmadı."
-                pagination={data ? { page: data.number, totalPages: data.totalPages } : undefined}
-                onPageChange={setPage}
-            />
+            {/* Modül Sekmeleri */}
+            <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('probabilistic')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-all ${
+                            activeTab === 'probabilistic'
+                                ? 'border-indigo-600 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <Zap className="w-4 h-4" />
+                        <span>Olasılıksal Afet & Hasar Analizi (Gözcü)</span>
+                    </button>
 
-            <TriggerSimulationModal
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onSuccess={() => {
-                    setModalOpen(false);
-                    queryClient.invalidateQueries({ queryKey: queryKeys.simulations.all });
-                    toast.success('Simülasyon başarıyla başlatıldı');
-                }}
-            />
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('stress_test')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-all ${
+                            activeTab === 'stress_test'
+                                ? 'border-indigo-600 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <ListFilter className="w-4 h-4" />
+                        <span>Sistem Bildirim & Hazırlık Testleri</span>
+                    </button>
+                </nav>
+            </div>
+
+            {/* Aktif Sekme İçeriği */}
+            {activeTab === 'probabilistic' ? (
+                <ProbabilisticSimulationSection />
+            ) : (
+                <div className="space-y-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800">
+                        Bu ekrandan başlatılan simülasyonlar, hedef ilçedeki koordinatör ve gönüllülere afet tatbikat e-postaları kuyruklayarak sistemin bildirim performansını ölçer.
+                    </div>
+
+                    <DataTable
+                        columns={columns}
+                        data={data?.content || []}
+                        isLoading={isLoading}
+                        emptyMessage="Henüz simülasyon başlatılmadı."
+                        pagination={data ? { page: data.number, totalPages: data.totalPages } : undefined}
+                        onPageChange={setPage}
+                    />
+
+                    <TriggerSimulationModal
+                        isOpen={modalOpen}
+                        onClose={() => setModalOpen(false)}
+                        onSuccess={() => {
+                            setModalOpen(false);
+                            queryClient.invalidateQueries({ queryKey: queryKeys.simulations.all });
+                            toast.success('Simülasyon başarıyla başlatıldı');
+                        }}
+                    />
+                </div>
+            )}
         </div>
     );
 };

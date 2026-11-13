@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo } from 'react';
 import { MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '@/config/mapTiles';
-import { GeoJSON, MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { GeoJSON, MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type {
@@ -10,10 +10,12 @@ import type {
     NeighborhoodCoordinatorMapResponse,
 } from '@/types';
 import type { DamagePointResponse } from '@/types/damage';
+import type { CriticalFacility } from '@/types/hazard';
 import type { LayerState } from './operationMapLayers';
 import type { SelectedMapEntity } from './MapEntityDetails';
 import {
     createDamageIcon, createDistrictCenterIcon, createNeighborhoodCenterIcon, createResourceIcon,
+    createCriticalFacilityIcon,
     polygonCenter, districtStyle, neighborhoodStyle, toFeature,
     buildDistrictTooltip, buildNeighborhoodTooltip,
 } from './mapIcons';
@@ -46,6 +48,7 @@ interface OperationMapProps {
     damagePoints: DamagePointResponse[];
     districtCenters: DistrictCoordinatorMapResponse[];
     neighborhoodCenters: NeighborhoodCoordinatorMapResponse[];
+    criticalFacilities?: CriticalFacility[];
     activeDistrictId: string | null;
     activeNeighborhoodId: string | null;
     activeBounds: L.LatLngBounds | null;
@@ -57,11 +60,11 @@ interface OperationMapProps {
 
 /**
  * Saf harita render component'i — hiç veri çekmez (fetch page'de), yalnızca props'tan gelen
- * veriyi Leaflet layer'larına döker. Marker tıklamaları artık kendi Popup'larını açmak yerine
- * `onSelectEntity` ile MapPage'e "seçilen varlık" olarak bildirilir (bkz. MapEntityDetails).
+ * veriyi Leaflet layer'larına döker.
  */
 export const OperationMap: React.FC<OperationMapProps> = ({
     layers, districts, neighborhoods, damagePoints, districtCenters, neighborhoodCenters,
+    criticalFacilities,
     activeDistrictId, activeNeighborhoodId, activeBounds, activeDistrictName,
     onSelectDistrict, onSelectNeighborhood, onSelectEntity,
 }) => {
@@ -70,12 +73,6 @@ export const OperationMap: React.FC<OperationMapProps> = ({
         [districts],
     );
 
-    // İlçe/mahalle sınır poligonları (Leaflet <GeoJSON>, ~550KB toplam koordinat verisi) her
-    // ilçenin en az bir tanesi büyük/kıyı şeridi ağırlıklı olduğundan (Şile/Çatalca/Beykoz
-    // >45KB) senkron parse+SVG path üretimi tek bir commit'te ana thread'i bloklayabilir.
-    // useDeferredValue bu ağır katmanın render'ını düşük öncelikli/kesilebilir bir geçişe
-    // taşır — nihai görünüm birebir aynı kalır, yalnızca haritanın ilk etkileşimli hale gelmesi
-    // (taban tile + kontroller) bu senkron işin arkasında beklemek zorunda kalmaz.
     const deferredDistrictsWithPolygon = useDeferredValue(districtsWithPolygon);
     const deferredNeighborhoods = useDeferredValue(neighborhoods);
 
@@ -100,24 +97,22 @@ export const OperationMap: React.FC<OperationMapProps> = ({
                 />
             ))}
 
-            {/* ── Risk layer: Neighborhood polygons ── */}
-            {layers.risk && activeDistrictId && deferredNeighborhoods?.map((nb) => {
-                if (!nb.polygon) return null;
-                const isActive = nb.id === activeNeighborhoodId;
-                return (
+            {/* ── Risk layer: Neighborhood polygons (inside selected district) ── */}
+            {layers.risk && activeDistrictId && deferredNeighborhoods
+                ?.filter((nb) => !!nb.polygon)
+                .map((nb) => (
                     <GeoJSON
-                        key={nb.id + '-' + nb.riskColor + '-' + isActive}
+                        key={nb.id + '-' + nb.riskColor + '-' + (nb.id === activeNeighborhoodId)}
                         data={toFeature(nb.polygon)}
-                        style={() => neighborhoodStyle(nb.riskColor, isActive)}
+                        style={() => neighborhoodStyle(nb.riskColor, nb.id === activeNeighborhoodId)}
                         onEachFeature={(_, layer) => {
                             layer.bindTooltip(buildNeighborhoodTooltip(nb), { sticky: true });
                             layer.on('click', () => onSelectNeighborhood(nb));
                         }}
                     />
-                );
-            })}
+                ))}
 
-            {/* ── Damage layer: pins ── */}
+            {/* ── Damage points layer (pins) ── */}
             {layers.damage && damagePoints.map((point) => (
                 <Marker
                     key={point.id}
@@ -125,6 +120,22 @@ export const OperationMap: React.FC<OperationMapProps> = ({
                     icon={createDamageIcon(point.damageLevel)}
                     eventHandlers={{ click: () => onSelectEntity({ kind: 'DAMAGE', data: point }) }}
                 />
+            ))}
+
+            {/* ── Critical Infrastructure layer (Hastane, İtfaiye, Polis vb.) ── */}
+            {layers.criticalInfra && criticalFacilities?.map((facility, idx) => (
+                <Marker
+                    key={`crit-${idx}-${facility.lat}-${facility.lng}`}
+                    position={[facility.lat, facility.lng]}
+                    icon={createCriticalFacilityIcon(facility.type)}
+                    eventHandlers={{ click: () => onSelectEntity({ kind: 'CRITICAL_FACILITY', data: facility }) }}
+                >
+                    <Tooltip direction="top" offset={[0, -25]}>
+                        <div className="text-xs font-semibold">
+                            {facility.name || (facility.type === 'hospital' ? 'Hastane' : facility.type === 'fire_station' ? 'İtfaiye İstasyonu' : 'Kamu Tesisi')}
+                        </div>
+                    </Tooltip>
+                </Marker>
             ))}
 
             {/* ── Resource requests layer: district centroids (city view) ── */}

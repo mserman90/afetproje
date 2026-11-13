@@ -3,28 +3,30 @@ import { Link } from 'react-router-dom';
 import {
     CalendarDays, CalendarRange, CalendarClock,
     Activity, PackageOpen, Boxes, AlertTriangle, HeartHandshake, FileBarChart2,
+    Network
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import type { ReportTypeKey } from '@/types';
 
 interface ReportCard {
-    key: ReportTypeKey;
+    key: string;
     title: string;
     description: string;
     icon: React.ReactNode;
     color: string;
+    customHref?: string;
 }
 
-// İlçe Raporu / Mahalle Raporu kartları KALDIRILDI — ilçe/mahalle artık tüm raporlarda filtredir.
 const CARDS: ReportCard[] = [
-    { key: 'daily',     title: 'Günlük Rapor',          description: 'Seçilen gün için tüm modüllerin operasyonel özeti.', icon: <CalendarDays className="h-6 w-6" />,  color: 'bg-brand-100 text-brand-700' },
-    { key: 'weekly',    title: 'Haftalık Rapor',        description: 'Seçilen haftanın kapsamlı toplamı ve dağılımı.',     icon: <CalendarRange className="h-6 w-6" />, color: 'bg-indigo-100 text-indigo-700' },
-    { key: 'monthly',   title: 'Aylık Rapor',           description: 'Seçilen ayın kapsamlı performans değerlendirmesi.',   icon: <CalendarClock className="h-6 w-6" />, color: 'bg-violet-100 text-violet-700' },
-    { key: 'operation', title: 'Ekip Raporu',            description: 'Ekip durumu, görev performansı ve müdahale süreleri.', icon: <Activity className="h-6 w-6" />,    color: 'bg-emerald-100 text-emerald-700' },
-    { key: 'resource',  title: 'Kaynak Talep Raporu',   description: 'Talep durumu, karşılama oranı ve kategori dağılımı.', icon: <PackageOpen className="h-6 w-6" />,    color: 'bg-blue-100 text-blue-700' },
-    { key: 'stock',     title: 'Stok Raporu',           description: 'Stok seviyeleri, kritik kalemler ve tüketim.',        icon: <Boxes className="h-6 w-6" />,          color: 'bg-amber-100 text-amber-700' },
-    { key: 'damage',    title: 'Hasar Raporu',          description: 'Hasar durumu, risk dağılımı ve mahalle yoğunluğu.',   icon: <AlertTriangle className="h-6 w-6" />, color: 'bg-orange-100 text-orange-700' },
-    { key: 'volunteer', title: 'Gönüllü Raporu',        description: 'Gönüllü sayısı, aktiflik ve mahalle dağılımı.',       icon: <HeartHandshake className="h-6 w-6" />, color: 'bg-rose-100 text-rose-700' },
+    { key: 'daily',        title: 'Günlük Rapor',             description: 'Seçilen gün için tüm modüllerin operasyonel özeti.', icon: <CalendarDays className="h-6 w-6" />,     color: 'bg-brand-100 text-brand-700' },
+    { key: 'weekly',       title: 'Haftalık Rapor',           description: 'Seçilen haftanın kapsamlı toplamı ve dağılımı.',     icon: <CalendarRange className="h-6 w-6" />,    color: 'bg-indigo-100 text-indigo-700' },
+    { key: 'monthly',      title: 'Aylık Rapor',              description: 'Seçilen ayın kapsamlı performans değerlendirmesi.',   icon: <CalendarClock className="h-6 w-6" />,    color: 'bg-violet-100 text-violet-700' },
+    { key: 'operation',    title: 'Ekip Raporu',               description: 'Ekip durumu, görev performansı ve müdahale süreleri.', icon: <Activity className="h-6 w-6" />,       color: 'bg-emerald-100 text-emerald-700' },
+    { key: 'resource',     title: 'Kaynak Talep Raporu',      description: 'Talep durumu, karşılama oranı ve kategori dağılımı.', icon: <PackageOpen className="h-6 w-6" />,       color: 'bg-blue-100 text-blue-700' },
+    { key: 'stock',        title: 'Stok Raporu',              description: 'Stok seviyeleri, kritik kalemler ve tüketim.',        icon: <Boxes className="h-6 w-6" />,             color: 'bg-amber-100 text-amber-700' },
+    { key: 'damage',       title: 'Hasar Raporu',             description: 'Hasar durumu, risk dağılımı ve mahalle yoğunluğu.',   icon: <AlertTriangle className="h-6 w-6" />,    color: 'bg-orange-100 text-orange-700' },
+    { key: 'volunteer',    title: 'Gönüllü Raporu',           description: 'Gönüllü sayısı, aktiflik ve mahalle dağılımı.',       icon: <HeartHandshake className="h-6 w-6" />,   color: 'bg-rose-100 text-rose-700' },
+    { key: 'intelligence', title: 'Tehdit Bilgi Grafı (OSINT)', description: 'Canlı USGS, GDACS, meteoroloji ve uzay havası ilişkisel ağ analizi.', icon: <Network className="h-6 w-6" />, color: 'bg-cyan-100 text-cyan-800', customHref: '/coordination-center?tab=intelligence' },
 ];
 
 export const ReportCenterPage: React.FC = () => {
@@ -35,10 +37,10 @@ export const ReportCenterPage: React.FC = () => {
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
                     <FileBarChart2 className="h-7 w-7 text-brand-700" />
-                    Raporlar
+                    Raporlar & Analitik Merkez
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                    Rapor türünü seçin; ilçe/mahalle ve dönem filtreleriyle oluşturun, PDF/Excel olarak indirin veya yazdırın.
+                    Rapor türünü seçin; ilçe/mahalle ve dönem filtreleriyle oluşturun, PDF/Excel olarak indirin veya ilişkisel tehdit grafını inceleyin.
                     {user?.role !== 'ADMIN' && ' Raporlar yetki kapsamınıza göre otomatik filtrelenir.'}
                 </p>
             </div>
@@ -47,7 +49,7 @@ export const ReportCenterPage: React.FC = () => {
                 {CARDS.map((c, i) => (
                     <Link
                         key={c.key}
-                        to={`/reports/view?key=${c.key}`}
+                        to={c.customHref || `/reports/view?key=${c.key}`}
                         className={`glass-card px-5 py-6 group block animate-stagger-${Math.min(i + 1, 4)}`}
                     >
                         <div className="flex items-start gap-4">

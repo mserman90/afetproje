@@ -33,6 +33,8 @@ import { StreetSearchResultResponse } from '@/types/street';
 import { LayerState, LayerKey, getDefaultLayersForRole } from '@/components/map/operationMapLayers';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { isWebglSupported } from '@/utils/webgl';
+import { fetchInfraData } from '@/services/hazardApiService';
+import { findDistrictGeo } from '@/config/istanbulDistricts';
 
 // maplibre-gl (~900kB) yalnızca gerçekten Pendik/mahalle görünümüne girildiğinde indirilsin diye
 // dinamik import — BuildingMap hem burada hem BuildingSelector.tsx'te (Hasar Tespiti) statik
@@ -281,8 +283,22 @@ export const MapPage: React.FC = () => {
         }));
     };
 
+    // ── Kritik Kamu Altyapısı (Hastane, İtfaiye, Polis - OSM Overpass) ──
+    const activeDistrictGeo = activeDistrictName ? findDistrictGeo(activeDistrictName) : null;
+    const centerLat = activeDistrictGeo?.lat ?? 41.0082;
+    const centerLng = activeDistrictGeo?.lng ?? 28.9784;
+
+    const { data: infraData } = useQuery({
+        queryKey: ['criticalInfra', activeDistrictId ?? 'istanbul', centerLat, centerLng],
+        queryFn: () => fetchInfraData(centerLat, centerLng),
+        enabled: layers.criticalInfra,
+        staleTime: 1000 * 60 * 30,
+    });
+    const criticalFacilities = infraData?.facilities ?? [];
+
     const layerCounts = {
         damage: damagePoints.length,
+        criticalInfra: criticalFacilities.length,
         resources: (activeDistrictId ? neighborhoods : districts)
             ?.reduce((sum, area: any) => sum + (area.openResourceRequestCount ?? 0), 0),
         districtCenters: districtCenters.length,
@@ -443,6 +459,7 @@ export const MapPage: React.FC = () => {
                             damagePoints={damagePoints}
                             districtCenters={districtCenters}
                             neighborhoodCenters={neighborhoodCenters}
+                            criticalFacilities={criticalFacilities}
                             activeDistrictId={activeDistrictId}
                             activeNeighborhoodId={activeNeighborhoodId}
                             activeBounds={activeBounds}

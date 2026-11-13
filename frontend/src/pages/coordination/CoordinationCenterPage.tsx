@@ -1,29 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { queryKeys } from '@/utils/queryKeys';
 import { getMapDistricts, getMapNeighborhoods } from '@/api/map.api';
 import { LoadingSpinner } from '@/components/ui';
-import { Building2 } from 'lucide-react';
+import { Building2, Network } from 'lucide-react';
 import { DistrictSection } from '@/components/coordination/DistrictSection';
 import { NeighborhoodSection } from '@/components/coordination/NeighborhoodSection';
 import { turkishCompare } from '@/utils/turkishSort';
+import { IntelligenceGraph } from '@/components/intelligence/IntelligenceGraph';
+import { scrapeLiveOpenIntelligence } from '@/services/openIntelligenceService';
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export const CoordinationCenterPage: React.FC = () => {
     const { user } = useAuthStore();
     const role = user?.role;
+    const [searchParams] = useSearchParams();
 
-    const [activeTab, setActiveTab] = useState<'district' | 'neighborhood'>('district');
+    const [activeTab, setActiveTab] = useState<'district' | 'neighborhood' | 'intelligence'>('district');
     const [adminDistrictId, setAdminDistrictId] = useState<string>('');
     const [adminNeighborhoodDistrictId, setAdminNeighborhoodDistrictId] = useState<string>('');
     const [adminNeighborhoodId, setAdminNeighborhoodId] = useState<string>('');
 
     // DC-specific tab state
-    const [dcTab, setDcTab] = useState<'district' | 'neighborhood'>('district');
+    const [dcTab, setDcTab] = useState<'district' | 'neighborhood' | 'intelligence'>('district');
     const [dcNeighborhoodId, setDcNeighborhoodId] = useState<string>('');
 
-    // Fetch district list (for all roles — used for map polygons)
+    // URL'den tab parametresi gelirse ilgili sekmeyi aç
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam === 'intelligence') {
+            setActiveTab('intelligence');
+            setDcTab('intelligence');
+        }
+    }, [searchParams]);
+
+    // Fetch district list
     const { data: allDistricts = [], isLoading: loadingDistricts } = useQuery({
         queryKey: queryKeys.map.districts(),
         queryFn: getMapDistricts,
@@ -36,21 +49,27 @@ export const CoordinationCenterPage: React.FC = () => {
         enabled: !!adminNeighborhoodDistrictId,
     });
 
-    // Coordinator-aware IDs from auth store.
-    // Backend enriches login/me response so that for DC: districtId = assigned district,
-    // for NC: neighborhoodId = assigned neighborhood AND districtId = containing district.
+    // Canlı Açık Kaynak İstihbarat Verisi (USGS, Open-Meteo, NOAA, GDACS - Keyless)
+    const { 
+        data: intelligenceEvents = [], 
+        refetch: refetchIntel, 
+        isFetching: fetchingIntel 
+    } = useQuery({
+        queryKey: ['openIntelligenceEvents'],
+        queryFn: scrapeLiveOpenIntelligence,
+        staleTime: 1000 * 60 * 10,
+    });
+
     const dcDistrictId = user?.districtId ?? '';
     const ncNeighborhoodId = user?.neighborhoodId ?? '';
-    const ncDistrictId = user?.districtId ?? ''; // For NC: backend sets districtId = neighborhood's district
+    const ncDistrictId = user?.districtId ?? '';
 
-    // NC: fetch neighborhoods in the district that contains the assigned neighborhood
     const { data: ncNeighborhoods = [] } = useQuery({
         queryKey: queryKeys.map.neighborhoods(ncDistrictId),
         queryFn: () => getMapNeighborhoods(ncDistrictId),
         enabled: role === 'NEIGHBORHOOD_COORDINATOR' && !!ncDistrictId,
     });
 
-    // DC: fetch neighborhoods in their assigned district for neighborhood center management
     const { data: dcNeighborhoods = [], isLoading: loadingDcNeighborhoods } = useQuery({
         queryKey: queryKeys.map.neighborhoods(dcDistrictId),
         queryFn: () => getMapNeighborhoods(dcDistrictId),
@@ -69,14 +88,14 @@ export const CoordinationCenterPage: React.FC = () => {
         const dcSelectedNeighborhood = dcNeighborhoods.find(n => n.id === dcNeighborhoodId);
 
         return (
-            <div className="max-w-2xl mx-auto">
-                <div className="mb-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+                <div>
                     <div className="flex items-center gap-3 mb-1">
                         <Building2 className="h-6 w-6 text-blue-600" />
-                        <h1 className="text-2xl font-bold text-gray-900">Koordinatörlük Merkezleri</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">Koordinatörlük & Operasyon Merkezi</h1>
                     </div>
                     <p className="text-sm text-gray-500">
-                        {dcDistrict?.name ? `${dcDistrict.name} İlçesi` : 'İlçeniz'} — İlçe ve mahalle operasyon merkezi konumları
+                        {dcDistrict?.name ? `${dcDistrict.name} İlçesi` : 'İlçeniz'} — Operasyon merkezleri ve canlı tehdit grafı
                     </p>
                 </div>
 
@@ -89,7 +108,7 @@ export const CoordinationCenterPage: React.FC = () => {
                 ) : (
                     <>
                         {/* Tabs */}
-                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
+                        <div className="flex flex-wrap gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                             <button
                                 onClick={() => setDcTab('district')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -110,16 +129,27 @@ export const CoordinationCenterPage: React.FC = () => {
                             >
                                 Mahalle Merkezleri
                             </button>
+                            <button
+                                onClick={() => setDcTab('intelligence')}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                                    dcTab === 'intelligence'
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                <Network className="w-4 h-4" />
+                                <span>Canlı Tehdit Bilgi Grafı (Gözcü)</span>
+                            </button>
                         </div>
 
                         {dcTab === 'district' && (
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
                                 <DistrictSection districtId={dcDistrictId} district={dcDistrict} />
                             </div>
                         )}
 
                         {dcTab === 'neighborhood' && (
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Mahalle Seç</label>
                                     <select
@@ -148,10 +178,18 @@ export const CoordinationCenterPage: React.FC = () => {
                                     />
                                 ) : (
                                     <p className="text-sm text-gray-400 text-center py-8">
-                                        Merkezi yönetmek istediğiniz mahalleyi seçin.
+                                        Yönetmek istediğiniz mahalleyi seçin.
                                     </p>
                                 )}
                             </div>
+                        )}
+
+                        {dcTab === 'intelligence' && (
+                            <IntelligenceGraph
+                                events={intelligenceEvents}
+                                onRefresh={() => refetchIntel()}
+                                isRefreshing={fetchingIntel}
+                            />
                         )}
                     </>
                 )}
@@ -162,30 +200,45 @@ export const CoordinationCenterPage: React.FC = () => {
     // ── NEIGHBORHOOD COORDINATOR VIEW ─────────────────────────────────────────
     if (role === 'NEIGHBORHOOD_COORDINATOR') {
         return (
-            <div className="max-w-2xl mx-auto">
-                <div className="mb-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+                <div>
                     <div className="flex items-center gap-3 mb-1">
-                        <Building2 className="h-6 w-6 text-violet-600" />
-                        <h1 className="text-2xl font-bold text-gray-900">Koordinatörlük Merkezim</h1>
+                        <Building2 className="h-6 w-6 text-purple-600" />
+                        <h1 className="text-2xl font-bold text-gray-900">Mahalle Koordinasyon Merkezi</h1>
                     </div>
                     <p className="text-sm text-gray-500">
-                        {ncNeighborhood?.name ? `${ncNeighborhood.name} Mahallesi` : 'Mahalleniz'}{' '}
-                        {ncDistrictObj?.name ? `(${ncDistrictObj.name})` : ''} — Operasyon merkezi konumu
+                        {ncNeighborhood?.name ? `${ncNeighborhood.name} Mahallesi` : 'Mahalleniz'} ({ncDistrictObj?.name ? `${ncDistrictObj.name} İlçesi` : ''})
                     </p>
                 </div>
 
-                {!ncNeighborhoodId ? (
+                {loadingDistricts ? (
+                    <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+                ) : !ncNeighborhoodId ? (
                     <div className="text-center py-12 text-gray-500">
-                        <p className="font-medium">Hesabınıza henüz bir mahalle atanmamış.</p>
-                        <p className="text-sm mt-1">Lütfen yöneticinizle iletişime geçin.</p>
+                        Hesabınıza henüz bir mahalle atanmamış. Lütfen yöneticinizle iletişime geçin.
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                        <NeighborhoodSection
-                            neighborhoodId={ncNeighborhoodId}
-                            neighborhood={ncNeighborhood}
-                            districtName={ncDistrictObj?.name}
-                        />
+                    <div className="space-y-6">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
+                            <NeighborhoodSection
+                                key={ncNeighborhoodId}
+                                neighborhoodId={ncNeighborhoodId}
+                                neighborhood={ncNeighborhood}
+                                districtName={ncDistrictObj?.name}
+                            />
+                        </div>
+
+                        <div>
+                            <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <Network className="w-5 h-5 text-indigo-600" />
+                                <span>Bölgesel Tehdit & Bilgi Grafı</span>
+                            </h3>
+                            <IntelligenceGraph
+                                events={intelligenceEvents}
+                                onRefresh={() => refetchIntel()}
+                                isRefreshing={fetchingIntel}
+                            />
+                        </div>
                     </div>
                 )}
             </div>
@@ -194,17 +247,19 @@ export const CoordinationCenterPage: React.FC = () => {
 
     // ── ADMIN VIEW ────────────────────────────────────────────────────────────
     return (
-        <div className="max-w-3xl mx-auto">
-            <div className="mb-6">
+        <div className="max-w-5xl mx-auto space-y-6">
+            <div>
                 <div className="flex items-center gap-3 mb-1">
                     <Building2 className="h-6 w-6 text-blue-600" />
-                    <h1 className="text-2xl font-bold text-gray-900">Koordinatörlük Merkezleri</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Koordinatörlük & Operasyon Merkezi</h1>
                 </div>
-                <p className="text-sm text-gray-500">İlçe ve mahalle operasyon merkezi konumlarını yönetin.</p>
+                <p className="text-sm text-gray-500">
+                    İlçe ve mahalle operasyon merkezi konumlarını yönetin ve canlı bölgesel tehdit ağını izleyin.
+                </p>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
+            <div className="flex flex-wrap gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                 <button
                     onClick={() => setActiveTab('district')}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -225,11 +280,22 @@ export const CoordinationCenterPage: React.FC = () => {
                 >
                     Mahalle Merkezleri
                 </button>
+                <button
+                    onClick={() => setActiveTab('intelligence')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'intelligence'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                    <Network className="w-4 h-4" />
+                    <span>Canlı Tehdit Bilgi Grafı (Gözcü)</span>
+                </button>
             </div>
 
             {/* District tab */}
             {activeTab === 'district' && (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             İlçe Seç
@@ -267,7 +333,7 @@ export const CoordinationCenterPage: React.FC = () => {
 
             {/* Neighborhood tab */}
             {activeTab === 'neighborhood' && (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">İlçe Seç</label>
@@ -328,6 +394,15 @@ export const CoordinationCenterPage: React.FC = () => {
                         </p>
                     )}
                 </div>
+            )}
+
+            {/* Intelligence Graph tab */}
+            {activeTab === 'intelligence' && (
+                <IntelligenceGraph
+                    events={intelligenceEvents}
+                    onRefresh={() => refetchIntel()}
+                    isRefreshing={fetchingIntel}
+                />
             )}
         </div>
     );
